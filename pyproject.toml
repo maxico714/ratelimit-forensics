@@ -22,7 +22,7 @@ classifiers = [
 dependencies = ["PyYAML>=6.0,<7"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10"]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10", "types-PyYAML>=6.0"]
 
 [project.scripts]
 ratelimit-forensics = "ratelimit_forensics.cli:main"
