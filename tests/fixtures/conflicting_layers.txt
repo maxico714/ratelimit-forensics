@@ -1,0 +1,9 @@
+HTTP/1.1 429 Too Many Requests
+Date: Sat, 25 Oct 2026 10:00:00 GMT
+Content-Type: text/html
+Server: cloudflare
+X-RateLimit-Limit: 2000
+X-RateLimit-Remaining: 1757
+X-RateLimit-Reset: 1792922400
+
+<html><body>Error 1015 You are being rate limited.</body></html>

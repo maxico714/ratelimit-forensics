@@ -1,0 +1,12 @@
+HTTP/1.1 429 Too Many Requests
+Date: Sat, 25 Oct 2026 10:00:00 GMT
+Content-Type: application/json
+x-ratelimit-limit-requests: 500
+x-ratelimit-remaining-requests: 0
+x-ratelimit-reset-requests: 20ms
+x-ratelimit-limit-tokens: 20000
+x-ratelimit-remaining-tokens: 0
+x-ratelimit-reset-tokens: 1s
+Retry-After: 1
+
+{"error":{"message":"Rate limit reached for gpt-4o in organization org-abc on tokens per min.","type":"rate_limit_exceeded","code":"rate_limit_exceeded"}}

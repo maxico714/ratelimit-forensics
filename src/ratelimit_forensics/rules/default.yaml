@@ -1,0 +1,111 @@
+version: 1
+rules:
+  - id: cloudflare-1015
+    layer: edge-cdn
+    vendor: cloudflare
+    confidence: 0.92
+    when:
+      body_kind: [cloudflare-1015]
+    evidence:
+      - "body matches a Cloudflare 1015 rate-limit page"
+
+  - id: cloudflare-server-absence
+    layer: edge-cdn
+    vendor: cloudflare
+    confidence: 0.85
+    when:
+      all:
+        - status: 429
+        - header_equals: { server: cloudflare }
+        - header_absent: [ratelimit-limit, x-ratelimit-limit]
+    evidence:
+      - "Server header names Cloudflare"
+      - "no RateLimit or X-RateLimit counters are present"
+
+  - id: openai-body
+    layer: upstream
+    vendor: openai
+    confidence: 0.9
+    when:
+      body_kind: [openai]
+    evidence:
+      - "body carries an OpenAI rate_limit_exceeded error"
+
+  - id: anthropic-body
+    layer: upstream
+    vendor: anthropic
+    confidence: 0.9
+    when:
+      body_kind: [anthropic]
+    evidence:
+      - "body carries an Anthropic rate_limit_error"
+
+  - id: google-body
+    layer: upstream
+    vendor: google
+    confidence: 0.85
+    when:
+      body_kind: [google]
+    evidence:
+      - "body carries a Google RESOURCE_EXHAUSTED / quota error"
+
+  - id: openai-dual-dimension
+    layer: upstream
+    vendor: openai
+    confidence: 0.78
+    when:
+      header_present: [x-ratelimit-limit-tokens, x-ratelimit-remaining-tokens]
+    evidence:
+      - "OpenAI dual-dimension request/token headers are present"
+
+  - id: anthropic-headers
+    layer: upstream
+    vendor: anthropic
+    confidence: 0.78
+    when:
+      header_present: [anthropic-ratelimit-requests-limit, anthropic-ratelimit-tokens-limit]
+    evidence:
+      - "anthropic-ratelimit-* headers are present"
+
+  - id: gateway-ietf
+    layer: gateway
+    vendor: null
+    confidence: 0.78
+    when:
+      all:
+        - header_present: [ratelimit]
+        - header_present: [ratelimit-policy]
+    evidence:
+      - "IETF RateLimit and RateLimit-Policy structured fields are present"
+
+  - id: gateway-envoy
+    layer: gateway
+    vendor: envoy
+    confidence: 0.7
+    when:
+      all:
+        - status: 429
+        - header_equals: { server: envoy }
+    evidence:
+      - "Server header names Envoy"
+
+  - id: app-x-ratelimit
+    layer: app
+    vendor: null
+    confidence: 0.6
+    when:
+      all:
+        - status: 429
+        - header_present: [x-ratelimit-limit, x-ratelimit-remaining]
+        - body_kind: [generic-json, text, empty, json-other]
+    evidence:
+      - "X-RateLimit-* counters are present alongside a 429"
+
+  - id: generic-json
+    layer: unknown
+    vendor: null
+    confidence: 0.45
+    when:
+      body_kind: [generic-json]
+    evidence:
+      - "generic rate-limit JSON without vendor markers"
