@@ -67,3 +67,44 @@ def test_cli_redaction_failure_exits_3(
     code = cli.main(["analyze", "--headers", str(FIXTURES / "cloudflare_1015.txt")])
     assert code == 3
     assert "redaction failed" in capsys.readouterr().err
+
+
+def test_cli_malformed_rule_values_exit_2_without_traceback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    rules = tmp_path / "rules.yaml"
+    rules.write_text(
+        "rules:\n"
+        "  - id: broken\n"
+        "    layer: app\n"
+        "    confidence: 0.4\n"
+        "    when:\n"
+        "      all:\n"
+        "        - status: notanint\n",
+        encoding="utf-8",
+    )
+    code = cli.main(
+        ["analyze", "--headers", str(FIXTURES / "cloudflare_1015.txt"), "--rules", str(rules)]
+    )
+    assert code == 2
+    assert "cannot load rules" in capsys.readouterr().err
+
+
+def test_cli_log_line_credentials_never_reach_stdout(
+    capsys: pytest.CaptureFixture[str],
+):
+    code = cli.main(
+        [
+            "analyze",
+            "--headers",
+            str(FIXTURES / "cloudflare_1015.txt"),
+            "--log-line",
+            "1.2.3.4 429 GET /x api_key=supersecretvalue "
+            "Authorization: Bearer sk-live-abcdefghijklmnop",
+        ]
+    )
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "supersecretvalue" not in captured.out
+    assert "sk-live-abcdefghijklmnop" not in captured.out
+    assert "[REDACTED]" in captured.out

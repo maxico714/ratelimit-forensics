@@ -91,6 +91,45 @@ def test_bad_rules_file_is_rejected(tmp_path: Path):
         load_rules([bad])
 
 
+@pytest.mark.parametrize(
+    "when",
+    [
+        "      all:\n        - status: notanint\n",
+        "      all:\n        - body_contains: needle\n",
+        "      all:\n        - header_present: server\n",
+        "      all:\n        - header_matches: {server: '('}\n",
+        "      all:\n        - unknown_predicate: true\n",
+        "      all: []\n",
+        "      all: [not-a-mapping]\n",
+        "      all:\n        - status: 429\n      retry_after_present: true\n",
+        "      body_kind: cloudflare-1015\n",
+    ],
+)
+def test_malformed_rule_predicates_are_rejected(tmp_path: Path, when: str):
+    bad = tmp_path / "bad.yaml"
+    bad.write_text(
+        "rules:\n  - id: broken\n    layer: app\n    confidence: 0.4\n    when:\n" + when,
+        encoding="utf-8",
+    )
+    with pytest.raises(RuleError):
+        load_rules([bad])
+
+
+def test_malformed_evidence_is_rejected(tmp_path: Path):
+    bad = tmp_path / "bad.yaml"
+    bad.write_text(
+        "rules:\n"
+        "  - id: broken\n"
+        "    layer: app\n"
+        "    confidence: 0.4\n"
+        "    when: {status: 429}\n"
+        "    evidence: one string\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuleError):
+        load_rules([bad])
+
+
 def test_packaged_rules_load():
     rules = load_rules()
     assert len(rules) >= 8

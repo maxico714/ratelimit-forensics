@@ -91,6 +91,16 @@ def test_access_log_line_notes():
     assert any("access log" in note for note in notes)
 
 
+def test_access_log_line_credentials_are_redacted():
+    notes = parse_access_log_line(
+        "1.2.3.4 429 GET /x api_key=supersecretvalue Authorization: Bearer sk-live-abcdefghijklmnop"
+    )
+    joined = " ".join(notes)
+    assert "supersecretvalue" not in joined
+    assert "sk-live-abcdefghijklmnop" not in joined
+    assert "[REDACTED]" in joined
+
+
 def test_har_json_roundtrip_via_bytes():
     data = json.loads((FIXTURES / "sample.har").read_text(encoding="utf-8"))
     assert parse_har(json.dumps(data).encode()).status == 429

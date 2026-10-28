@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- `--log-line` values are now redacted before they become evidence, and the rendered
+  report is leak-checked before printing, closing a credential leak documented as
+  impossible by the privacy section.
+- Malformed custom rules (wrong predicate value types, invalid regexes, unknown or empty
+  predicates) are rejected with `RuleError` / exit code 2 instead of raising an
+  uncaught traceback or silently matching the wrong responses.
+
 ## [0.1.0] - 2026-10-25
 
 ### Added

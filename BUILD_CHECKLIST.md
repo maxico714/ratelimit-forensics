@@ -25,7 +25,7 @@ Gate 0 = pre-build spikes (do FIRST, record results in EVIDENCE.md). Then unit-b
 
 ## Quality gate (before packaging, M8)
 
-- [x] Full suite green locally: 56 tests on Python 3.12.10
+- [x] Full suite green locally: 69 tests on Python 3.12.10 (56 at first release; regression tests added during release QA)
 - [ ] Full suite green on declared matrix (Windows + Linux, Python 3.10/3.12/3.13) — CI
 - [x] L4: fresh copy, `pip install -e ".[dev]"`, tests and CLI quickstart pass
 - [x] L5: adversarial suite green

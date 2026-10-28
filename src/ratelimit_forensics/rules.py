@@ -37,6 +37,57 @@ class Rule:
     evidence: tuple[str, ...] = field(default_factory=tuple)
 
 
+_LIST_PREDICATES = {"header_present", "header_absent", "body_kind", "body_contains"}
+_MAP_PREDICATES = {"header_equals", "header_matches"}
+
+
+def _validate_clause(clause: Any, rule_id: str) -> None:
+    if not isinstance(clause, dict) or not clause:
+        raise RuleError(f"rule {rule_id} has an empty or non-mapping predicate")
+    for key, value in clause.items():
+        if key == "status":
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise RuleError(f"rule {rule_id}: 'status' must be an integer")
+        elif key in _LIST_PREDICATES:
+            if (
+                not isinstance(value, list)
+                or not value
+                or not all(isinstance(item, str) and item for item in value)
+            ):
+                raise RuleError(f"rule {rule_id}: '{key}' must be a non-empty list of strings")
+        elif key in _MAP_PREDICATES:
+            if not isinstance(value, dict) or not value:
+                raise RuleError(f"rule {rule_id}: '{key}' must be a non-empty mapping")
+            for name, pattern in value.items():
+                if not isinstance(name, str) or not name or not isinstance(pattern, str):
+                    raise RuleError(f"rule {rule_id}: '{key}' must map strings to strings")
+                if key == "header_matches":
+                    try:
+                        re.compile(pattern)
+                    except re.error as exc:
+                        raise RuleError(
+                            f"rule {rule_id}: invalid 'header_matches' regex {pattern!r}: {exc}"
+                        ) from None
+        elif key == "retry_after_present":
+            if not isinstance(value, bool):
+                raise RuleError(f"rule {rule_id}: 'retry_after_present' must be a boolean")
+        else:
+            raise RuleError(f"rule {rule_id}: unknown predicate '{key}'")
+
+
+def _validate_when(when: dict[str, Any], rule_id: str) -> None:
+    clauses = when.get("all")
+    if clauses is None:
+        _validate_clause(when, rule_id)
+        return
+    if set(when) != {"all"}:
+        raise RuleError(f"rule {rule_id}: 'all' cannot be combined with other predicates")
+    if not isinstance(clauses, list) or not clauses:
+        raise RuleError(f"rule {rule_id}: 'all' must be a non-empty list of predicates")
+    for clause in clauses:
+        _validate_clause(clause, rule_id)
+
+
 def _parse_rule(raw: Mapping[str, Any]) -> Rule:
     try:
         rule_id = str(raw["id"])
@@ -49,7 +100,13 @@ def _parse_rule(raw: Mapping[str, Any]) -> Rule:
         raise RuleError(f"rule {rule_id} has an empty or non-mapping 'when'")
     if not 0.0 <= confidence <= 1.0:
         raise RuleError(f"rule {rule_id} confidence must be within 0..1")
-    evidence = tuple(str(item) for item in raw.get("evidence", []))
+    _validate_when(when, rule_id)
+    evidence_raw = raw.get("evidence", [])
+    if not isinstance(evidence_raw, list) or not all(
+        isinstance(item, str) for item in evidence_raw
+    ):
+        raise RuleError(f"rule {rule_id}: 'evidence' must be a list of strings")
+    evidence = tuple(evidence_raw)
     vendor = raw.get("vendor")
     return Rule(rule_id, layer, str(vendor) if vendor else None, confidence, when, evidence)
 

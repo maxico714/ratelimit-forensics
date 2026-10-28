@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from .models import Captured
+from .redact import redact
 
 
 class ParseError(ValueError):
@@ -97,9 +98,16 @@ _LOG_429 = re.compile(r"\s429\s")
 
 
 def parse_access_log_line(line: str) -> tuple[str, ...]:
-    """Return evidence notes from a single access-log line; never raises."""
+    """Return evidence notes from a single access-log line; never raises.
+
+    The line is redacted before it can become evidence: log lines often carry
+    credentials in URLs or headers, and evidence is printed verbatim.
+    """
     raw = (line or "").strip()
-    if not raw or not _LOG_429.search(raw):
+    if not raw:
+        return ()
+    raw, _ = redact(raw)
+    if not _LOG_429.search(raw):
         return ()
     notes = [f"access log records a 429: {raw[:200]}"]
     lowered = raw.lower()

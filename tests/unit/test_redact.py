@@ -4,9 +4,9 @@ from ratelimit_forensics.redact import RedactionError, assert_clean, redact
 
 
 def test_bearer_token_is_redacted():
-    clean, count = redact("Authorization: Bearer abcdef123456\nHost: x")
+    clean, count = redact("Authorization: Bearer example-bearer-token\nHost: x")
     assert count == 1
-    assert "abcdef123456" not in clean
+    assert "example-bearer-token" not in clean
     assert "[REDACTED]" in clean
     assert_clean(clean)
 
@@ -38,4 +38,4 @@ def test_clean_text_is_unchanged():
 
 def test_leak_check_raises_on_surviving_secret():
     with pytest.raises(RedactionError):
-        assert_clean("x-api-key: abcdef123456")
+        assert_clean("x-api-key: example-bearer-token")

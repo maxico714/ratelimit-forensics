@@ -75,7 +75,13 @@ def main(argv: list[str] | None = None) -> int:
     for note in (*captured.notes, *parse_access_log_line(args.log_line)):
         attribution.evidence.append(note)
 
-    sys.stdout.write(render_json(attribution) if args.json else render_text(attribution))
+    output = render_json(attribution) if args.json else render_text(attribution)
+    try:
+        assert_clean(output)
+    except RedactionError as exc:
+        print(f"error: redaction failed: {exc}", file=sys.stderr)
+        return 3
+    sys.stdout.write(output)
     return 0
 
 
