@@ -16,11 +16,14 @@ graph TB
     end
     subgraph Output
         G[Attribution report<br/>layer + evidence + confidence + reset]
-        H[JSON/SARIF export]
+        H[Text or JSON report]
     end
     A --> B --> C --> D --> E --> F --> G
-    F --> H
+    G --> H
 ```
+
+This document describes the implemented v0.1 behaviour. SARIF export and HAR
+streaming appear only as unchecked roadmap items.
 
 ## Data model
 
@@ -61,9 +64,10 @@ graph TB
 
 ## Public interfaces
 
-- CLI: `ratelimit-forensics analyze --har|--headers|--curl-dump [--json]`
-- Python API: `from ratelimit_forensics import analyze; analyze(headers=..., body=...) -> Attribution`
-- Node API: `const { analyze } = require('ratelimit-forensics')`
+- CLI: `ratelimit-forensics analyze --har|--headers|--curl-dump|--stdin [--json] [--rules PATH] [--log-line TEXT]`
+- Python API: `from ratelimit_forensics import evaluate, load_rules`; load the
+  packaged or custom rules, then evaluate a status, headers mapping and body.
+- There is no Node API in v0.1.
 
 ## Error model
 
@@ -74,21 +78,29 @@ graph TB
 
 ## Configuration model
 
-- Rules dir: `~/.config/ratelimit-forensics/rules/` (user-overridable)
-- Redaction patterns: built-in (Authorization, api_key, Bearer, sk-*, etc.) + user YAML
-- No network calls, ever (offline-first)
+- Rules: packaged `rules/default.yaml`, replaced or extended with the CLI
+  `--rules FILE_OR_DIR` option; there is no implicit user config directory.
+- Redaction patterns are built in; v0.1 does not accept user-supplied
+  redaction regexes.
+- No network calls, ever (offline-first).
 
 ## Performance budget
 
-- 10k-line HAR analyzed in <2s (target)
-- Memory: bounded by HAR size (streaming parse if >50MB)
+- 10k-line HAR analyzed in <2s on the fixture suite.
+- The v0.1 parser reads the input into memory. HAR streaming and an explicit
+  large-file cap remain roadmap work; do not feed it untrusted multi-gigabyte
+  captures.
 
 ## Threat model (STRIDE-lite)
 
-- **Tampering**: rules-as-data could be tampered → ship signed default rules; user rules isolated
-- **Information disclosure**: logs may contain API keys → redaction engine runs BEFORE parse; A8 checklist
-- **Denial of service**: huge HAR → streaming parse + size cap
-- **Elevation**: none (no network, no privileges)
+- **Tampering**: rules-as-data could be tampered. v0.1 ships unsigned packaged
+  rules; distribute and review custom rules like code. Signed rules remain
+  roadmap work.
+- **Information disclosure**: logs may contain API keys → redaction runs before
+  parsing and the rendered report is leak-checked before printing.
+- **Denial of service**: no network listener, but a hostile local file can
+  consume memory; streaming and explicit caps remain roadmap work.
+- **Elevation**: none (no network, no privileges).
 
 ## Privacy model
 
@@ -105,11 +117,10 @@ graph TB
 
 ## Tech choices
 
-- **Python 3.10+** (stdlib-first: urllib.parse, json, re, argparse; zero hard deps for v0.1)
+- **Python 3.10+**, standard library plus PyYAML for rules-as-data.
   - Rejected: Go (no host toolchain), Node (secondary target later), Rust (no host toolchain)
-- Rules-as-data: PyYAML (MIT) for attribution rules
-- Testing: pytest + Hypothesis (property tests for Retry-After disambiguation)
-- Rationale: most contributor-friendly for the LLM/dev-tools audience; mocklimit fixtures are Python
+- Testing: pytest with unit, integration, adversarial and CLI tests.
+- Rationale: contributor-friendly and easy to run fully offline.
 
 ## Repository layout
 
@@ -121,15 +132,17 @@ ratelimit-forensics/
 ├── pyproject.toml
 ├── src/ratelimit_forensics/
 │   ├── __init__.py
+│   ├── adapters.py        # HAR, header block and curl-dump parsing
+│   ├── bodies.py          # body classifiers
 │   ├── cli.py
-│   ├── adapters/ (har.py, headers.py, curl_dump.py)
+│   ├── models.py
+│   ├── parsers.py         # rate-limit and Retry-After parsing
 │   ├── redact.py
-│   ├── parsers/ (x_ratelimit.py, ietf_draft8.py, retry_after.py, openai.py, anthropic.py)
-│   ├── bodies/ (cloudflare.py, openai.py, anthropic.py, google.py)
-│   ├── rules/ (engine.py, *.yaml)
-│   └── report.py
+│   ├── report.py
+│   ├── rules.py
+│   └── rules/default.yaml
 ├── tests/ (unit/, integration/, adversarial/, fixtures/)
-└── docs/ (PRODUCT.md, TECHNICAL.md, ROADMAP.md, EVIDENCE.md)
+└── docs/ (PRODUCT.md, TECHNICAL.md, ROADMAP.md, EVIDENCE.md, SECURITY in root)
 ```
 
 ## Coding conventions
